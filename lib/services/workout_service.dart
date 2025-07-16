@@ -1,9 +1,11 @@
 // lib/services/workout_service.dart
+
 import '../models/workout.dart';
 import '../models/exercise.dart';
 
 class WorkoutService {
   static final List<Workout> _workouts = [
+    // SOLO ALLENAMENTI CONSIGLIATI (RIMOSSI QUELLI PERSONALI)
     Workout(
       id: '1',
       title: 'Allenamento Base',
@@ -64,6 +66,36 @@ class WorkoutService {
         ),
       ],
     ),
+    Workout(
+      id: '5',
+      title: 'Cardio Leggero',
+      description: 'Allenamento cardio per tutti i livelli',
+      difficulty: 'Medio',
+      duration: 40,
+      createdBy: 'admin',
+      isRecommended: true,
+      createdAt: DateTime.now().subtract(const Duration(hours: 6)),
+      exercises: [
+        Exercise(
+          id: '5',
+          name: 'Jumping Jacks',
+          description: 'Salti sul posto per riscaldamento',
+          sets: 3,
+          reps: 20,
+          duration: 0,
+          createdAt: DateTime.now(),
+        ),
+        Exercise(
+          id: '6',
+          name: 'Mountain Climbers',
+          description: 'Esercizio cardio e core',
+          sets: 3,
+          reps: 15,
+          duration: 0,
+          createdAt: DateTime.now(),
+        ),
+      ],
+    ),
   ];
 
   static Future<Workout?> getWorkoutById(String workoutId) async {
@@ -77,7 +109,7 @@ class WorkoutService {
 
   static Future<List<Workout>> getAllWorkouts() async {
     await Future.delayed(const Duration(milliseconds: 300));
-    return List<Workout>.from(_workouts);
+    return List.from(_workouts);
   }
 
   static Future<List<Workout>> getRecommendedWorkouts() async {
@@ -93,7 +125,6 @@ class WorkoutService {
   static Future<List<Workout>> searchWorkouts(String query) async {
     await Future.delayed(const Duration(milliseconds: 400));
     if (query.isEmpty) return [];
-
     final allWorkouts = await getAllWorkouts();
     return allWorkouts.where((w) => w.matchesQuery(query)).toList();
   }

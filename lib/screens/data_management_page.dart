@@ -185,9 +185,9 @@ class DataManagementPage extends StatelessWidget {
   void _showSyncDialog(BuildContext context) {
     showDialog(
       context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('Sincronizzazione'),
-        content: const Column(
+      builder: (context) => const AlertDialog(
+        title: Text('Sincronizzazione'),
+        content: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
             CircularProgressIndicator(),

@@ -1,4 +1,5 @@
 // lib/providers/workout_provider.dart
+
 import 'package:flutter/foundation.dart';
 import '../models/workout.dart';
 import '../services/workout_service.dart';
@@ -12,24 +13,54 @@ class WorkoutProvider extends ChangeNotifier {
   List<Workout> _searchResults = [];
   String _searchQuery = '';
   String? _selectedDifficulty;
-
-  List<Workout> _allWorkouts = []; // contiene tutti gli allenamenti caricati
-
+  
   // Riferimento per controllo admin
   bool _isAdmin = false;
 
   // Getter per lo stato
   bool get isLoading => _isLoading;
   String? get errorMessage => _errorMessage;
-  List<Workout> get recommendedWorkouts =>
-      List.unmodifiable(_recommendedWorkouts);
+  List<Workout> get recommendedWorkouts => List.unmodifiable(_recommendedWorkouts);
   List<Workout> get personalWorkouts => List.unmodifiable(_personalWorkouts);
   List<Workout> get searchResults => List.unmodifiable(_searchResults);
   String get searchQuery => _searchQuery;
   String? get selectedDifficulty => _selectedDifficulty;
-
-  // Getter per controllo admin
   bool get isAdmin => _isAdmin;
+
+  // GETTER CORRETTI PER ALLENAMENTI FILTRATI CON RICERCA E DIFFICOLTÀ
+  List<Workout> get filteredRecommendedWorkouts {
+    // Usa i risultati della ricerca se c'è una query attiva, altrimenti usa la lista completa
+    List<Workout> baseList = _searchQuery.trim().isNotEmpty ? _searchResults : _recommendedWorkouts;
+    
+    // Filtra per allenamenti consigliati
+    baseList = baseList.where((w) => w.isRecommended).toList();
+    
+    // Applica il filtro per difficoltà se attivo
+    if (_selectedDifficulty == null || _selectedDifficulty!.isEmpty || _selectedDifficulty == 'Tutte') {
+      return baseList;
+    }
+    
+    return baseList
+        .where((w) => w.difficulty.toLowerCase() == _selectedDifficulty!.toLowerCase())
+        .toList();
+  }
+  
+  List<Workout> get filteredPersonalWorkouts {
+    // Usa i risultati della ricerca se c'è una query attiva, altrimenti usa la lista completa
+    List<Workout> baseList = _searchQuery.trim().isNotEmpty ? _searchResults : _personalWorkouts;
+    
+    // Filtra per allenamenti personali
+    baseList = baseList.where((w) => !w.isRecommended).toList();
+    
+    // Applica il filtro per difficoltà se attivo
+    if (_selectedDifficulty == null || _selectedDifficulty!.isEmpty || _selectedDifficulty == 'Tutte') {
+      return baseList;
+    }
+    
+    return baseList
+        .where((w) => w.difficulty.toLowerCase() == _selectedDifficulty!.toLowerCase())
+        .toList();
+  }
 
   // Setter per controllo admin
   void setAdminStatus(bool isAdmin) {
@@ -41,14 +72,11 @@ class WorkoutProvider extends ChangeNotifier {
   Future<void> loadWorkouts() async {
     _setLoading(true);
     _clearError();
-
     try {
       final recommended = await WorkoutService.getRecommendedWorkouts();
       final personal = await WorkoutService.getPersonalWorkouts();
-
       _recommendedWorkouts = recommended;
       _personalWorkouts = personal;
-
       notifyListeners();
     } catch (e) {
       _setError('Errore durante il caricamento degli allenamenti: $e');
@@ -57,14 +85,64 @@ class WorkoutProvider extends ChangeNotifier {
     }
   }
 
-  // Aggiunta workout consigliato
+  // Metodo per filtrare per difficoltà
+  void filterByDifficulty(String? difficulty) {
+    _selectedDifficulty = difficulty;
+    notifyListeners();
+  }
+  
+  // Metodo per pulire i filtri
+  void clearFilters() {
+    _selectedDifficulty = null;
+    notifyListeners();
+  }
+
+  // Metodo per la ricerca
+  Future<void> searchWorkouts(String query) async {
+    _searchQuery = query;
+    if (query.isEmpty) {
+      _searchResults.clear();
+      notifyListeners();
+      return;
+    }
+
+    _setLoading(true);
+    _clearError();
+    try {
+      final results = await WorkoutService.searchWorkouts(query);
+      _searchResults = results;
+      notifyListeners();
+    } catch (e) {
+      _setError('Errore durante la ricerca: $e');
+    } finally {
+      _setLoading(false);
+    }
+  }
+
+  // Metodo per pulire la ricerca
+  void clearSearch() {
+    _searchQuery = '';
+    _searchResults.clear();
+    notifyListeners();
+  }
+
+  // METODO CORRETTO PER APPLICARE RICERCA E FILTRO INSIEME
+  void applySearchAndFilter(String query, String? difficulty) {
+    if (query.trim().isNotEmpty) {
+      searchWorkouts(query);
+    } else {
+      clearSearch();
+    }
+    
+    filterByDifficulty(difficulty);
+  }
+
+  // METODO CORRETTO PER AGGIUNGERE WORKOUT CONSIGLIATO
   Future<void> addRecommendedWorkout(Workout workout) async {
     _setLoading(true);
     _clearError();
-
     try {
       Workout processedWorkout;
-
       if (isAdmin) {
         processedWorkout = workout.copyWith(
           id: DateTime.now().millisecondsSinceEpoch.toString(),
@@ -79,7 +157,11 @@ class WorkoutProvider extends ChangeNotifier {
           difficulty: 'Medio',
         );
       }
-
+      
+      // AGGIUNGE AL SERVIZIO PER LA RICERCA
+      await WorkoutService.addWorkout(processedWorkout);
+      
+      // AGGIUNGE ALLA LISTA LOCALE
       _recommendedWorkouts.add(processedWorkout);
       notifyListeners();
     } catch (e) {
@@ -89,14 +171,12 @@ class WorkoutProvider extends ChangeNotifier {
     }
   }
 
-  // Aggiunta workout personale
+  // METODO CORRETTO PER AGGIUNGERE WORKOUT PERSONALE
   Future<void> addPersonalWorkout(Workout workout) async {
     _setLoading(true);
     _clearError();
-
     try {
       Workout processedWorkout;
-
       if (isAdmin) {
         processedWorkout = workout.copyWith(
           id: DateTime.now().millisecondsSinceEpoch.toString(),
@@ -111,7 +191,11 @@ class WorkoutProvider extends ChangeNotifier {
           difficulty: 'Medio',
         );
       }
-
+      
+      // AGGIUNGE AL SERVIZIO PER LA RICERCA
+      await WorkoutService.addWorkout(processedWorkout);
+      
+      // AGGIUNGE ALLA LISTA LOCALE
       _personalWorkouts.add(processedWorkout);
       notifyListeners();
     } catch (e) {
@@ -121,14 +205,12 @@ class WorkoutProvider extends ChangeNotifier {
     }
   }
 
-  // Aggiornamento workout
+  // METODO CORRETTO PER AGGIORNARE WORKOUT
   Future<void> updateWorkout(Workout workout) async {
     _setLoading(true);
     _clearError();
-
     try {
       Workout processedWorkout;
-
       if (isAdmin) {
         processedWorkout = workout.copyWith(
           createdAt: workout.createdAt,
@@ -139,87 +221,15 @@ class WorkoutProvider extends ChangeNotifier {
           difficulty: 'Medio',
         );
       }
-
+      
+      // AGGIORNA NEL SERVIZIO
+      await WorkoutService.updateWorkout(processedWorkout);
+      
+      // AGGIORNA NELLA LISTA LOCALE
       _updateWorkoutInList(processedWorkout);
       notifyListeners();
     } catch (e) {
       _setError('Errore durante l\'aggiornamento dell\'allenamento: $e');
-    } finally {
-      _setLoading(false);
-    }
-  }
-
-  // METODI MANCANTI RICHIESTI DALLE SCHERMATE
-
-  // Metodo per pulire la ricerca
-  void clearSearch() {
-    _searchQuery = '';
-    _searchResults.clear();
-    notifyListeners();
-  }
-
-  List<Workout> get filteredWorkouts {
-    if (_selectedDifficulty == null || _selectedDifficulty!.isEmpty) {
-      return _allWorkouts;
-    }
-    return _allWorkouts
-        .where((w) =>
-            w.difficulty.toLowerCase() == _selectedDifficulty!.toLowerCase())
-        .toList();
-  }
-
-  // Metodo per filtrare per difficoltà
-  void filterByDifficulty(String? difficulty) {
-    _selectedDifficulty = difficulty;
-    if (difficulty == null || difficulty.isEmpty || difficulty == 'Tutte') {
-      _searchResults = [..._recommendedWorkouts, ..._personalWorkouts];
-    } else {
-      _searchResults = [..._recommendedWorkouts, ..._personalWorkouts]
-          .where((w) => w.difficulty.toLowerCase() == difficulty.toLowerCase())
-          .toList();
-    }
-    notifyListeners();
-  }
-
-  // Metodo per creare workout consigliato (alias per addRecommendedWorkout)
-  Future<bool> createRecommendedWorkout(Workout workout) async {
-    try {
-      await addRecommendedWorkout(workout);
-      return true;
-    } catch (e) {
-      return false;
-    }
-  }
-
-  // Metodo per creare workout personale (alias per addPersonalWorkout)
-  Future<bool> createPersonalWorkout(Workout workout) async {
-    try {
-      await addPersonalWorkout(workout);
-      return true;
-    } catch (e) {
-      return false;
-    }
-  }
-
-  // Metodo per la ricerca
-  Future<void> searchWorkouts(String query) async {
-    _searchQuery = query;
-
-    if (query.isEmpty) {
-      _searchResults.clear();
-      notifyListeners();
-      return;
-    }
-
-    _setLoading(true);
-    _clearError();
-
-    try {
-      final results = await WorkoutService.searchWorkouts(query);
-      _searchResults = results;
-      notifyListeners();
-    } catch (e) {
-      _setError('Errore durante la ricerca: $e');
     } finally {
       _setLoading(false);
     }
@@ -240,20 +250,41 @@ class WorkoutProvider extends ChangeNotifier {
     }
   }
 
-  // Eliminazione workout
+  // METODO CORRETTO PER ELIMINARE WORKOUT
   Future<void> deleteWorkout(String workoutId) async {
     _setLoading(true);
     _clearError();
-
     try {
+      // ELIMINA DAL SERVIZIO
+      await WorkoutService.deleteWorkout(workoutId);
+      
+      // ELIMINA DALLE LISTE LOCALI
       _recommendedWorkouts.removeWhere((w) => w.id == workoutId);
       _personalWorkouts.removeWhere((w) => w.id == workoutId);
-
       notifyListeners();
     } catch (e) {
       _setError('Errore durante l\'eliminazione dell\'allenamento: $e');
     } finally {
       _setLoading(false);
+    }
+  }
+
+  // Metodi alias per compatibilità
+  Future<bool> createRecommendedWorkout(Workout workout) async {
+    try {
+      await addRecommendedWorkout(workout);
+      return true;
+    } catch (e) {
+      return false;
+    }
+  }
+
+  Future<bool> createPersonalWorkout(Workout workout) async {
+    try {
+      await addPersonalWorkout(workout);
+      return true;
+    } catch (e) {
+      return false;
     }
   }
 

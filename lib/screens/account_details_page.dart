@@ -144,38 +144,28 @@ class AccountDetailsPage extends StatelessWidget {
                     ),
                   ),
 
-                // Pulsante condizionale
-                SizedBox(
-                  width: double.infinity,
-                  child: authProvider.isLoggedIn
-                      ? ElevatedButton.icon(
-                          onPressed: () {
-                            _showChangePasswordDialog(context);
-                          },
-                          icon: const Icon(Icons.lock_reset),
-                          label: const Text('Cambia Password'),
-                          style: ElevatedButton.styleFrom(
-                            backgroundColor: Colors.deepPurple,
-                            foregroundColor: Colors.white,
+                // Pulsante SOLO per utenti non connessi
+                if (!authProvider.isLoggedIn)
+                  SizedBox(
+                    width: double.infinity,
+                    child: ElevatedButton.icon(
+                      onPressed: () {
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (context) => const LoginPage(),
                           ),
-                        )
-                      : ElevatedButton.icon(
-                          onPressed: () {
-                            Navigator.push(
-                              context,
-                              MaterialPageRoute(
-                                builder: (context) => const LoginPage(),
-                              ),
-                            );
-                          },
-                          icon: const Icon(Icons.login),
-                          label: const Text('Accedi'),
-                          style: ElevatedButton.styleFrom(
-                            backgroundColor: Colors.deepPurple,
-                            foregroundColor: Colors.white,
-                          ),
-                        ),
-                ),
+                        );
+                      },
+                      icon: const Icon(Icons.login),
+                      label: const Text('Accedi'),
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: Colors.deepPurple,
+                        foregroundColor: Colors.white,
+                      ),
+                    ),
+                  ),
+// Per utenti loggati: NESSUN PULSANTE viene mostrato
               ],
             ),
           );
@@ -220,24 +210,6 @@ class AccountDetailsPage extends StatelessWidget {
               fontWeight: FontWeight.bold,
               color: Colors.deepPurple,
             ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  void _showChangePasswordDialog(BuildContext context) {
-    showDialog(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('Cambia Password'),
-        content: const Text(
-          'Questa funzionalità sarà disponibile nella versione completa dell\'app con autenticazione reale.',
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text('OK'),
           ),
         ],
       ),

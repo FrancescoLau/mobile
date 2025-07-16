@@ -91,7 +91,7 @@ class _HomePageState extends State<HomePage> {
                     _handleLogout();
                   }
                 },
-                itemBuilder: (BuildContext context) => [
+                itemBuilder: (BuildContext context) => <PopupMenuEntry<String>>[
                   PopupMenuItem<String>(
                     enabled: false,
                     child: Column(
@@ -103,10 +103,8 @@ class _HomePageState extends State<HomePage> {
                         ),
                         Text(
                           authProvider.isAdmin ? 'Amministratore' : 'Utente',
-                          style: TextStyle(
-                            fontSize: 12,
-                            color: Colors.grey[600],
-                          ),
+                          style:
+                              TextStyle(fontSize: 12, color: Colors.grey[600]),
                         ),
                       ],
                     ),
@@ -130,7 +128,7 @@ class _HomePageState extends State<HomePage> {
       ),
       body: _pages[_selectedIndex],
       bottomNavigationBar: BottomNavigationBar(
-        items: const <BottomNavigationBarItem>[
+        items: const [
           BottomNavigationBarItem(
             icon: Icon(Icons.recommend),
             label: 'Consigliati',
@@ -175,7 +173,6 @@ class _HomePageState extends State<HomePage> {
     final reviewProvider = Provider.of<ReviewProvider>(context, listen: false);
 
     await authProvider.logout();
-
     workoutProvider.clearSearch();
     reviewProvider.clear();
 
@@ -239,7 +236,7 @@ class _HomePageState extends State<HomePage> {
   }
 }
 
-// Tab per allenamenti consigliati
+// TAB ALLENAMENTI CONSIGLIATI AGGIORNATA
 class RecommendedWorkoutsTab extends StatelessWidget {
   const RecommendedWorkoutsTab({super.key});
 
@@ -257,27 +254,161 @@ class RecommendedWorkoutsTab extends StatelessWidget {
                 'Allenamenti Consigliati',
                 style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
               ),
-              Consumer<AuthProvider>(
-                builder: (context, authProvider, child) {
-                  if (authProvider.isAdmin) {
-                    return ElevatedButton.icon(
-                      onPressed: () {
-                        _showAddRecommendedWorkoutDialog(context);
-                      },
-                      icon: const Icon(Icons.add, size: 18),
-                      label: const Text('Aggiungi'),
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: Colors.orange,
-                        foregroundColor: Colors.white,
-                      ),
-                    );
-                  }
-                  return const SizedBox.shrink();
-                },
+              Row(
+                children: [
+                  // Pulsante di ricerca
+                  IconButton(
+                    icon: const Icon(Icons.search),
+                    onPressed: () {
+                      showDialog(
+                        context: context,
+                        builder: (context) => const SearchDialog(),
+                      );
+                    },
+                  ),
+                  // FILTRO DIFFICOLTÀ
+                  Consumer<WorkoutProvider>(
+                    builder: (context, workoutProvider, child) {
+                      return PopupMenuButton<String>(
+                        icon: Icon(
+                          Icons.filter_list,
+                          color: workoutProvider.selectedDifficulty != null &&
+                                  workoutProvider.selectedDifficulty != 'Tutte'
+                              ? Colors.deepPurple
+                              : Colors.grey,
+                        ),
+                        onSelected: (value) {
+                          workoutProvider.filterByDifficulty(value);
+                        },
+                        itemBuilder: (context) => [
+                          const PopupMenuItem(
+                            value: 'Tutte',
+                            child: Text('Tutte'),
+                          ),
+                          const PopupMenuItem(
+                            value: 'Facile',
+                            child: Text('Facile'),
+                          ),
+                          const PopupMenuItem(
+                            value: 'Medio',
+                            child: Text('Medio'),
+                          ),
+                          const PopupMenuItem(
+                            value: 'Difficile',
+                            child: Text('Difficile'),
+                          ),
+                        ],
+                      );
+                    },
+                  ),
+                  // PULSANTE AGGIUNGI (SOLO ADMIN)
+                  Consumer<AuthProvider>(
+                    builder: (context, authProvider, child) {
+                      if (authProvider.isAdmin) {
+                        return ElevatedButton.icon(
+                          onPressed: () {
+                            _showAddRecommendedWorkoutDialog(context);
+                          },
+                          icon: const Icon(Icons.add, size: 18),
+                          label: const Text('Aggiungi'),
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: Colors.orange,
+                            foregroundColor: Colors.white,
+                          ),
+                        );
+                      }
+                      return const SizedBox.shrink();
+                    },
+                  ),
+                ],
               ),
             ],
           ),
+
+          // MOSTRA RICERCA ATTIVA
+          Consumer<WorkoutProvider>(
+            builder: (context, workoutProvider, child) {
+              if (workoutProvider.searchQuery.trim().isNotEmpty) {
+                return Container(
+                  margin: const EdgeInsets.only(top: 10),
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                  decoration: BoxDecoration(
+                    color: Colors.blue.withOpacity(0.1),
+                    borderRadius: BorderRadius.circular(20),
+                  ),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      const Icon(Icons.search, size: 16, color: Colors.blue),
+                      const SizedBox(width: 8),
+                      Text(
+                        'Ricerca: "${workoutProvider.searchQuery}"',
+                        style: const TextStyle(
+                          color: Colors.blue,
+                          fontWeight: FontWeight.w500,
+                        ),
+                      ),
+                      const SizedBox(width: 8),
+                      InkWell(
+                        onTap: () => workoutProvider.clearSearch(),
+                        child: const Icon(
+                          Icons.close,
+                          size: 18,
+                          color: Colors.blue,
+                        ),
+                      ),
+                    ],
+                  ),
+                );
+              }
+              return const SizedBox.shrink();
+            },
+          ),
+
+          // MOSTRA FILTRO DIFFICOLTÀ ATTIVO
+          Consumer<WorkoutProvider>(
+            builder: (context, workoutProvider, child) {
+              if (workoutProvider.selectedDifficulty != null &&
+                  workoutProvider.selectedDifficulty != 'Tutte') {
+                return Container(
+                  margin: const EdgeInsets.only(top: 10),
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                  decoration: BoxDecoration(
+                    color: Colors.deepPurple.withOpacity(0.1),
+                    borderRadius: BorderRadius.circular(20),
+                  ),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Text(
+                        'Filtro: ${workoutProvider.selectedDifficulty}',
+                        style: const TextStyle(
+                          color: Colors.deepPurple,
+                          fontWeight: FontWeight.w500,
+                        ),
+                      ),
+                      const SizedBox(width: 8),
+                      InkWell(
+                        onTap: () => workoutProvider.clearFilters(),
+                        child: const Icon(
+                          Icons.close,
+                          size: 18,
+                          color: Colors.deepPurple,
+                        ),
+                      ),
+                    ],
+                  ),
+                );
+              }
+              return const SizedBox.shrink();
+            },
+          ),
+
           const SizedBox(height: 20),
+
+          // LISTA FILTRATA
           Expanded(
             child: Consumer<WorkoutProvider>(
               builder: (context, workoutProvider, child) {
@@ -311,19 +442,23 @@ class RecommendedWorkoutsTab extends StatelessWidget {
                   );
                 }
 
-                final recommendedWorkouts = workoutProvider.recommendedWorkouts;
+                // USA IL GETTER FILTRATO CORRETTO
+                final filteredWorkouts =
+                    workoutProvider.filteredRecommendedWorkouts;
 
-                if (recommendedWorkouts.isEmpty) {
-                  return const Center(
+                if (filteredWorkouts.isEmpty) {
+                  return Center(
                     child: Column(
                       mainAxisAlignment: MainAxisAlignment.center,
                       children: [
-                        Icon(Icons.fitness_center,
+                        const Icon(Icons.fitness_center,
                             size: 80, color: Colors.grey),
-                        SizedBox(height: 20),
+                        const SizedBox(height: 20),
                         Text(
-                          'Nessun allenamento consigliato disponibile',
-                          style: TextStyle(fontSize: 18, color: Colors.grey),
+                          _getEmptyMessage(workoutProvider),
+                          style:
+                              const TextStyle(fontSize: 18, color: Colors.grey),
+                          textAlign: TextAlign.center,
                         ),
                       ],
                     ),
@@ -333,16 +468,15 @@ class RecommendedWorkoutsTab extends StatelessWidget {
                 return RefreshIndicator(
                   onRefresh: () => workoutProvider.refresh(),
                   child: ListView.builder(
-                    itemCount: recommendedWorkouts.length,
+                    itemCount: filteredWorkouts.length,
                     itemBuilder: (context, index) {
-                      final workout = recommendedWorkouts[index];
+                      final workout = filteredWorkouts[index];
                       return Consumer<ReviewProvider>(
                         builder: (context, reviewProvider, child) {
                           final averageRating =
                               reviewProvider.getAverageRating(workout.id);
                           final reviews =
                               reviewProvider.getWorkoutReviews(workout.id);
-
                           return _buildWorkoutCard(
                               context, workout, averageRating, reviews.length);
                         },
@@ -358,6 +492,22 @@ class RecommendedWorkoutsTab extends StatelessWidget {
     );
   }
 
+  String _getEmptyMessage(WorkoutProvider workoutProvider) {
+    bool hasSearch = workoutProvider.searchQuery.trim().isNotEmpty;
+    bool hasFilter = workoutProvider.selectedDifficulty != null &&
+        workoutProvider.selectedDifficulty != 'Tutte';
+
+    if (hasSearch && hasFilter) {
+      return 'Nessun allenamento trovato per "${workoutProvider.searchQuery}" con difficoltà "${workoutProvider.selectedDifficulty}"';
+    } else if (hasSearch) {
+      return 'Nessun allenamento trovato per "${workoutProvider.searchQuery}"';
+    } else if (hasFilter) {
+      return 'Nessun allenamento trovato per "${workoutProvider.selectedDifficulty}"';
+    } else {
+      return 'Nessun allenamento consigliato disponibile';
+    }
+  }
+
   void _showAddRecommendedWorkoutDialog(BuildContext context) {
     showDialog(
       context: context,
@@ -366,139 +516,9 @@ class RecommendedWorkoutsTab extends StatelessWidget {
       },
     );
   }
-
-  Widget _buildWorkoutCard(
-      BuildContext context, Workout workout, double rating, int reviewCount) {
-    return Card(
-      margin: const EdgeInsets.only(bottom: 16),
-      elevation: 4,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-      child: InkWell(
-        onTap: () {
-          Navigator.push(
-            context,
-            MaterialPageRoute(
-              builder: (context) => WorkoutDetailPage(workout: workout),
-            ),
-          );
-        },
-        borderRadius: BorderRadius.circular(12),
-        child: Padding(
-          padding: const EdgeInsets.all(16.0),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Row(
-                children: [
-                  Container(
-                    padding: const EdgeInsets.all(12),
-                    decoration: BoxDecoration(
-                      color: Colors.deepPurple.withValues(alpha: 0.1),
-                      borderRadius: BorderRadius.circular(8),
-                    ),
-                    child: Icon(
-                      _getDifficultyIcon(workout.difficulty),
-                      color: Colors.deepPurple,
-                      size: 24,
-                    ),
-                  ),
-                  const SizedBox(width: 16),
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          workout.title,
-                          style: const TextStyle(
-                              fontSize: 18, fontWeight: FontWeight.bold),
-                        ),
-                        const SizedBox(height: 4),
-                        Text(
-                          workout.description,
-                          style:
-                              TextStyle(fontSize: 14, color: Colors.grey[600]),
-                          maxLines: 2,
-                          overflow: TextOverflow.ellipsis,
-                        ),
-                      ],
-                    ),
-                  ),
-                  const Icon(Icons.arrow_forward_ios,
-                      size: 16, color: Colors.grey),
-                ],
-              ),
-              const SizedBox(height: 16),
-              Row(
-                children: [
-                  _buildInfoChip(Icons.access_time, '${workout.duration} min'),
-                  const SizedBox(width: 8),
-                  _buildInfoChip(Icons.bar_chart, workout.difficulty),
-                  const SizedBox(width: 8),
-                  if (reviewCount > 0) _buildRatingChip(rating, reviewCount),
-                ],
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-
-  IconData _getDifficultyIcon(String difficulty) {
-    switch (difficulty.toLowerCase()) {
-      case 'facile':
-        return Icons.star;
-      case 'medio':
-        return Icons.favorite;
-      case 'difficile':
-        return Icons.fitness_center;
-      default:
-        return Icons.help;
-    }
-  }
-
-  Widget _buildInfoChip(IconData icon, String label) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-      decoration: BoxDecoration(
-        color: Colors.grey[100],
-        borderRadius: BorderRadius.circular(16),
-      ),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Icon(icon, size: 14, color: Colors.grey[600]),
-          const SizedBox(width: 4),
-          Text(label, style: TextStyle(fontSize: 12, color: Colors.grey[600])),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildRatingChip(double rating, int reviewCount) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-      decoration: BoxDecoration(
-        color: Colors.amber.withValues(alpha: 0.1),
-        borderRadius: BorderRadius.circular(16),
-      ),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          const Icon(Icons.star, size: 14, color: Colors.amber),
-          const SizedBox(width: 4),
-          Text(
-            '${rating.toStringAsFixed(1)} ($reviewCount)',
-            style: const TextStyle(
-                fontSize: 12, color: Colors.amber, fontWeight: FontWeight.w500),
-          ),
-        ],
-      ),
-    );
-  }
 }
 
-// Tab per allenamenti personali
+// TAB ALLENAMENTI PERSONALI AGGIORNATA
 class PersonalWorkoutsTab extends StatelessWidget {
   const PersonalWorkoutsTab({super.key});
 
@@ -509,11 +529,148 @@ class PersonalWorkoutsTab extends StatelessWidget {
       child: Column(
         children: [
           const SizedBox(height: 20),
-          const Text(
-            'I Miei Allenamenti',
-            style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              const Text(
+                'I Miei Allenamenti',
+                style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
+              ),
+              Row(
+                children: [
+                  // Pulsante di ricerca
+                  IconButton(
+                    icon: const Icon(Icons.search),
+                    onPressed: () {
+                      showDialog(
+                        context: context,
+                        builder: (context) => const SearchDialog(),
+                      );
+                    },
+                  ),
+                  // FILTRO DIFFICOLTÀ
+                  Consumer<WorkoutProvider>(
+                    builder: (context, workoutProvider, child) {
+                      return PopupMenuButton<String>(
+                        icon: Icon(
+                          Icons.filter_list,
+                          color: workoutProvider.selectedDifficulty != null &&
+                                  workoutProvider.selectedDifficulty != 'Tutte'
+                              ? Colors.deepPurple
+                              : Colors.grey,
+                        ),
+                        onSelected: (value) {
+                          workoutProvider.filterByDifficulty(value);
+                        },
+                        itemBuilder: (context) => [
+                          const PopupMenuItem(
+                            value: 'Tutte',
+                            child: Text('Tutte'),
+                          ),
+                          const PopupMenuItem(
+                            value: 'Facile',
+                            child: Text('Facile'),
+                          ),
+                          const PopupMenuItem(
+                            value: 'Medio',
+                            child: Text('Medio'),
+                          ),
+                          const PopupMenuItem(
+                            value: 'Difficile',
+                            child: Text('Difficile'),
+                          ),
+                        ],
+                      );
+                    },
+                  ),
+                ],
+              ),
+            ],
           ),
+
+          // MOSTRA RICERCA ATTIVA
+          Consumer<WorkoutProvider>(
+            builder: (context, workoutProvider, child) {
+              if (workoutProvider.searchQuery.trim().isNotEmpty) {
+                return Container(
+                  margin: const EdgeInsets.only(top: 10),
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                  decoration: BoxDecoration(
+                    color: Colors.blue.withOpacity(0.1),
+                    borderRadius: BorderRadius.circular(20),
+                  ),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      const Icon(Icons.search, size: 16, color: Colors.blue),
+                      const SizedBox(width: 8),
+                      Text(
+                        'Ricerca: "${workoutProvider.searchQuery}"',
+                        style: const TextStyle(
+                          color: Colors.blue,
+                          fontWeight: FontWeight.w500,
+                        ),
+                      ),
+                      const SizedBox(width: 8),
+                      InkWell(
+                        onTap: () => workoutProvider.clearSearch(),
+                        child: const Icon(
+                          Icons.close,
+                          size: 18,
+                          color: Colors.blue,
+                        ),
+                      ),
+                    ],
+                  ),
+                );
+              }
+              return const SizedBox.shrink();
+            },
+          ),
+
+          // MOSTRA FILTRO DIFFICOLTÀ ATTIVO
+          Consumer<WorkoutProvider>(
+            builder: (context, workoutProvider, child) {
+              if (workoutProvider.selectedDifficulty != null &&
+                  workoutProvider.selectedDifficulty != 'Tutte') {
+                return Container(
+                  margin: const EdgeInsets.only(top: 10),
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                  decoration: BoxDecoration(
+                    color: Colors.deepPurple.withOpacity(0.1),
+                    borderRadius: BorderRadius.circular(20),
+                  ),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Text(
+                        'Filtro: ${workoutProvider.selectedDifficulty}',
+                        style: const TextStyle(
+                          color: Colors.deepPurple,
+                          fontWeight: FontWeight.w500,
+                        ),
+                      ),
+                      const SizedBox(width: 8),
+                      InkWell(
+                        onTap: () => workoutProvider.clearFilters(),
+                        child: const Icon(
+                          Icons.close,
+                          size: 18,
+                          color: Colors.deepPurple,
+                        ),
+                      ),
+                    ],
+                  ),
+                );
+              }
+              return const SizedBox.shrink();
+            },
+          ),
+
           const SizedBox(height: 20),
+
           Expanded(
             child: Consumer<AuthProvider>(
               builder: (context, authProvider, child) {
@@ -527,18 +684,21 @@ class PersonalWorkoutsTab extends StatelessWidget {
                       return const Center(child: CircularProgressIndicator());
                     }
 
-                    final personalWorkouts = workoutProvider.personalWorkouts;
+                    // USA IL GETTER FILTRATO CORRETTO
+                    final filteredWorkouts =
+                        workoutProvider.filteredPersonalWorkouts;
 
-                    if (personalWorkouts.isEmpty) {
-                      return _buildEmptyContent(context, authProvider);
+                    if (filteredWorkouts.isEmpty) {
+                      return _buildEmptyContent(
+                          context, authProvider, workoutProvider);
                     }
 
                     return RefreshIndicator(
                       onRefresh: () => workoutProvider.refresh(),
                       child: ListView.builder(
-                        itemCount: personalWorkouts.length,
+                        itemCount: filteredWorkouts.length,
                         itemBuilder: (context, index) {
-                          final workout = personalWorkouts[index];
+                          final workout = filteredWorkouts[index];
                           return Card(
                             margin: const EdgeInsets.only(bottom: 16),
                             child: ListTile(
@@ -572,7 +732,26 @@ class PersonalWorkoutsTab extends StatelessWidget {
     );
   }
 
-  Widget _buildEmptyContent(BuildContext context, AuthProvider authProvider) {
+  Widget _buildEmptyContent(BuildContext context, AuthProvider authProvider,
+      WorkoutProvider workoutProvider) {
+    bool hasSearch = workoutProvider.searchQuery.trim().isNotEmpty;
+    bool hasFilter = workoutProvider.selectedDifficulty != null &&
+        workoutProvider.selectedDifficulty != 'Tutte';
+
+    String message;
+    if (hasSearch && hasFilter) {
+      message =
+          'Nessun allenamento trovato per "${workoutProvider.searchQuery}" con difficoltà "${workoutProvider.selectedDifficulty}"';
+    } else if (hasSearch) {
+      message =
+          'Nessun allenamento trovato per "${workoutProvider.searchQuery}"';
+    } else if (hasFilter) {
+      message =
+          'Nessun allenamento trovato per "${workoutProvider.selectedDifficulty}"';
+    } else {
+      message = 'Non hai ancora creato allenamenti personalizzati';
+    }
+
     return Center(
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
@@ -584,16 +763,19 @@ class PersonalWorkoutsTab extends StatelessWidget {
             style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
           ),
           const SizedBox(height: 10),
-          const Text(
-            'Non hai ancora creato allenamenti personalizzati',
-            style: TextStyle(fontSize: 16, color: Colors.grey),
-          ),
-          const SizedBox(height: 10),
-          const Text(
-            'Tocca il pulsante + per creare\nil tuo primo allenamento',
+          Text(
+            message,
+            style: const TextStyle(fontSize: 16, color: Colors.grey),
             textAlign: TextAlign.center,
-            style: TextStyle(fontSize: 14, color: Colors.grey),
           ),
+          if (!hasSearch && !hasFilter) ...[
+            const SizedBox(height: 10),
+            const Text(
+              'Tocca il pulsante + per creare\nil tuo primo allenamento',
+              textAlign: TextAlign.center,
+              style: TextStyle(fontSize: 14, color: Colors.grey),
+            ),
+          ],
           const SizedBox(height: 30),
           ElevatedButton.icon(
             onPressed: () {
@@ -655,10 +837,139 @@ class PersonalWorkoutsTab extends StatelessWidget {
   }
 }
 
-// Tab per il profilo
+// FUNZIONE PER COSTRUIRE CARD ALLENAMENTO
+Widget _buildWorkoutCard(
+    BuildContext context, Workout workout, double rating, int reviewCount) {
+  return Card(
+    margin: const EdgeInsets.only(bottom: 16),
+    elevation: 4,
+    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+    child: InkWell(
+      onTap: () {
+        Navigator.push(
+          context,
+          MaterialPageRoute(
+            builder: (context) => WorkoutDetailPage(workout: workout),
+          ),
+        );
+      },
+      borderRadius: BorderRadius.circular(12),
+      child: Padding(
+        padding: const EdgeInsets.all(16.0),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                Container(
+                  padding: const EdgeInsets.all(12),
+                  decoration: BoxDecoration(
+                    color: Colors.deepPurple.withValues(alpha: 0.1),
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  child: Icon(
+                    _getDifficultyIcon(workout.difficulty),
+                    color: Colors.deepPurple,
+                    size: 24,
+                  ),
+                ),
+                const SizedBox(width: 16),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        workout.title,
+                        style: const TextStyle(
+                            fontSize: 18, fontWeight: FontWeight.bold),
+                      ),
+                      const SizedBox(height: 4),
+                      Text(
+                        workout.description,
+                        style: TextStyle(fontSize: 14, color: Colors.grey[600]),
+                        maxLines: 2,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ],
+                  ),
+                ),
+                const Icon(Icons.arrow_forward_ios,
+                    size: 16, color: Colors.grey),
+              ],
+            ),
+            const SizedBox(height: 16),
+            Row(
+              children: [
+                _buildInfoChip(Icons.access_time, '${workout.duration} min'),
+                const SizedBox(width: 8),
+                _buildInfoChip(Icons.bar_chart, workout.difficulty),
+                const SizedBox(width: 8),
+                if (reviewCount > 0) _buildRatingChip(rating, reviewCount),
+              ],
+            ),
+          ],
+        ),
+      ),
+    ),
+  );
+}
+
+IconData _getDifficultyIcon(String difficulty) {
+  switch (difficulty.toLowerCase()) {
+    case 'facile':
+      return Icons.star;
+    case 'medio':
+      return Icons.favorite;
+    case 'difficile':
+      return Icons.fitness_center;
+    default:
+      return Icons.help;
+  }
+}
+
+Widget _buildInfoChip(IconData icon, String label) {
+  return Container(
+    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+    decoration: BoxDecoration(
+      color: Colors.grey[100],
+      borderRadius: BorderRadius.circular(16),
+    ),
+    child: Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Icon(icon, size: 14, color: Colors.grey[600]),
+        const SizedBox(width: 4),
+        Text(label, style: TextStyle(fontSize: 12, color: Colors.grey[600])),
+      ],
+    ),
+  );
+}
+
+Widget _buildRatingChip(double rating, int reviewCount) {
+  return Container(
+    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+    decoration: BoxDecoration(
+      color: Colors.amber.withValues(alpha: 0.1),
+      borderRadius: BorderRadius.circular(16),
+    ),
+    child: Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        const Icon(Icons.star, size: 14, color: Colors.amber),
+        const SizedBox(width: 4),
+        Text(
+          '${rating.toStringAsFixed(1)} ($reviewCount)',
+          style: const TextStyle(
+              fontSize: 12, color: Colors.amber, fontWeight: FontWeight.w500),
+        ),
+      ],
+    ),
+  );
+}
+
+// TAB PROFILO
 class ProfileTab extends StatelessWidget {
   final VoidCallback onLogout;
-
   const ProfileTab({super.key, required this.onLogout});
 
   @override
@@ -795,7 +1106,7 @@ class ProfileTab extends StatelessWidget {
   }
 }
 
-// Dialog per la ricerca
+// DIALOG PER LA RICERCA CORRETTA
 class SearchDialog extends StatefulWidget {
   const SearchDialog({super.key});
 
@@ -870,7 +1181,7 @@ class _SearchDialogState extends State<SearchDialog> {
                       height: 16,
                       child: CircularProgressIndicator(strokeWidth: 2),
                     )
-                  : const Text('Cerca'),
+                  : const Text('Applica'),
             );
           },
         ),
@@ -881,30 +1192,33 @@ class _SearchDialogState extends State<SearchDialog> {
   void _performSearch() {
     final workoutProvider =
         Provider.of<WorkoutProvider>(context, listen: false);
-
     final query = _searchController.text.trim();
-    if (query.isNotEmpty) {
-      workoutProvider.searchWorkouts(query);
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Ricerca per "$query" completata')),
-      );
+
+    // Applica ricerca e filtro insieme usando il nuovo metodo
+    workoutProvider.applySearchAndFilter(query, _selectedDifficulty);
+
+    // Messaggio di conferma corretto
+    String message;
+    if (query.isNotEmpty && _selectedDifficulty != 'Tutte') {
+      message =
+          'Ricerca per "$query" con filtro $_selectedDifficulty applicata';
+    } else if (query.isNotEmpty) {
+      message = 'Ricerca per "$query" applicata';
+    } else if (_selectedDifficulty != 'Tutte') {
+      message = 'Filtro $_selectedDifficulty applicato';
+    } else {
+      message = 'Filtri rimossi';
     }
 
-    if (_selectedDifficulty != 'Tutte') {
-      workoutProvider.filterByDifficulty(_selectedDifficulty);
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-            content:
-                Text('Filtro per difficoltà "$_selectedDifficulty" applicato')),
-      );
-    }
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text(message)),
+    );
   }
 }
 
-// Dialog per aggiungere allenamenti
+// DIALOG PER AGGIUNGERE ALLENAMENTI
 class AddWorkoutDialog extends StatefulWidget {
   final bool isRecommended;
-
   const AddWorkoutDialog({super.key, required this.isRecommended});
 
   @override
@@ -1044,7 +1358,6 @@ class _AddWorkoutDialogState extends State<AddWorkoutDialog> {
 
     final workoutProvider =
         Provider.of<WorkoutProvider>(context, listen: false);
-
     final newWorkout = Workout(
       id: '',
       title: _titleController.text.trim(),
