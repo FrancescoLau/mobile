@@ -13,14 +13,15 @@ class WorkoutProvider extends ChangeNotifier {
   List<Workout> _searchResults = [];
   String _searchQuery = '';
   String? _selectedDifficulty;
-  
+
   // Riferimento per controllo admin
   bool _isAdmin = false;
 
   // Getter per lo stato
   bool get isLoading => _isLoading;
   String? get errorMessage => _errorMessage;
-  List<Workout> get recommendedWorkouts => List.unmodifiable(_recommendedWorkouts);
+  List<Workout> get recommendedWorkouts =>
+      List.unmodifiable(_recommendedWorkouts);
   List<Workout> get personalWorkouts => List.unmodifiable(_personalWorkouts);
   List<Workout> get searchResults => List.unmodifiable(_searchResults);
   String get searchQuery => _searchQuery;
@@ -29,36 +30,36 @@ class WorkoutProvider extends ChangeNotifier {
 
   // GETTER CORRETTI PER ALLENAMENTI FILTRATI CON RICERCA E DIFFICOLTÀ
   List<Workout> get filteredRecommendedWorkouts {
-    // Usa i risultati della ricerca se c'è una query attiva, altrimenti usa la lista completa
-    List<Workout> baseList = _searchQuery.trim().isNotEmpty ? _searchResults : _recommendedWorkouts;
-    
-    // Filtra per allenamenti consigliati
+    List<Workout> baseList =
+        _searchQuery.isEmpty ? _recommendedWorkouts : _searchResults;
     baseList = baseList.where((w) => w.isRecommended).toList();
-    
-    // Applica il filtro per difficoltà se attivo
-    if (_selectedDifficulty == null || _selectedDifficulty!.isEmpty || _selectedDifficulty == 'Tutte') {
+
+    if (_selectedDifficulty == null ||
+        _selectedDifficulty!.isEmpty ||
+        _selectedDifficulty == 'Tutte') {
       return baseList;
     }
-    
+
     return baseList
-        .where((w) => w.difficulty.toLowerCase() == _selectedDifficulty!.toLowerCase())
+        .where((w) =>
+            w.difficulty.toLowerCase() == _selectedDifficulty!.toLowerCase())
         .toList();
   }
-  
+
   List<Workout> get filteredPersonalWorkouts {
-    // Usa i risultati della ricerca se c'è una query attiva, altrimenti usa la lista completa
-    List<Workout> baseList = _searchQuery.trim().isNotEmpty ? _searchResults : _personalWorkouts;
-    
-    // Filtra per allenamenti personali
+    List<Workout> baseList =
+        _searchQuery.isEmpty ? _personalWorkouts : _searchResults;
     baseList = baseList.where((w) => !w.isRecommended).toList();
-    
-    // Applica il filtro per difficoltà se attivo
-    if (_selectedDifficulty == null || _selectedDifficulty!.isEmpty || _selectedDifficulty == 'Tutte') {
+
+    if (_selectedDifficulty == null ||
+        _selectedDifficulty!.isEmpty ||
+        _selectedDifficulty == 'Tutte') {
       return baseList;
     }
-    
+
     return baseList
-        .where((w) => w.difficulty.toLowerCase() == _selectedDifficulty!.toLowerCase())
+        .where((w) =>
+            w.difficulty.toLowerCase() == _selectedDifficulty!.toLowerCase())
         .toList();
   }
 
@@ -90,7 +91,7 @@ class WorkoutProvider extends ChangeNotifier {
     _selectedDifficulty = difficulty;
     notifyListeners();
   }
-  
+
   // Metodo per pulire i filtri
   void clearFilters() {
     _selectedDifficulty = null;
@@ -99,7 +100,7 @@ class WorkoutProvider extends ChangeNotifier {
 
   // Metodo per la ricerca
   Future<void> searchWorkouts(String query) async {
-    _searchQuery = query;
+    _searchQuery = query.toLowerCase();
     if (query.isEmpty) {
       _searchResults.clear();
       notifyListeners();
@@ -109,8 +110,14 @@ class WorkoutProvider extends ChangeNotifier {
     _setLoading(true);
     _clearError();
     try {
-      final results = await WorkoutService.searchWorkouts(query);
-      _searchResults = results;
+      // Cerca in entrambe le liste (consigliati e personali)
+      final allWorkouts = [..._recommendedWorkouts, ..._personalWorkouts];
+      _searchResults = allWorkouts
+          .where((workout) =>
+              workout.title.toLowerCase().contains(_searchQuery) ||
+              workout.description.toLowerCase().contains(_searchQuery))
+          .toList();
+
       notifyListeners();
     } catch (e) {
       _setError('Errore durante la ricerca: $e');
@@ -133,12 +140,13 @@ class WorkoutProvider extends ChangeNotifier {
     } else {
       clearSearch();
     }
-    
+
     filterByDifficulty(difficulty);
   }
 
   // METODO CORRETTO PER AGGIUNGERE WORKOUT CONSIGLIATO
-  Future<void> addRecommendedWorkout(Workout workout) async {
+  Future<void> addRecommendedWorkout(Workout workout,
+      {String? userEmail}) async {
     _setLoading(true);
     _clearError();
     try {
@@ -148,6 +156,7 @@ class WorkoutProvider extends ChangeNotifier {
           id: DateTime.now().millisecondsSinceEpoch.toString(),
           createdAt: DateTime.now(),
           isRecommended: true,
+          createdBy: userEmail ?? 'admin', // CAMPO CREATEDBY CORRETTO
         );
       } else {
         processedWorkout = workout.copyWith(
@@ -155,13 +164,11 @@ class WorkoutProvider extends ChangeNotifier {
           createdAt: DateTime.now(),
           isRecommended: true,
           difficulty: 'Medio',
+          createdBy: userEmail ?? '', // CAMPO CREATEDBY CORRETTO
         );
       }
-      
-      // AGGIUNGE AL SERVIZIO PER LA RICERCA
+
       await WorkoutService.addWorkout(processedWorkout);
-      
-      // AGGIUNGE ALLA LISTA LOCALE
       _recommendedWorkouts.add(processedWorkout);
       notifyListeners();
     } catch (e) {
@@ -172,7 +179,7 @@ class WorkoutProvider extends ChangeNotifier {
   }
 
   // METODO CORRETTO PER AGGIUNGERE WORKOUT PERSONALE
-  Future<void> addPersonalWorkout(Workout workout) async {
+  Future<void> addPersonalWorkout(Workout workout, {String? userEmail}) async {
     _setLoading(true);
     _clearError();
     try {
@@ -182,6 +189,7 @@ class WorkoutProvider extends ChangeNotifier {
           id: DateTime.now().millisecondsSinceEpoch.toString(),
           createdAt: DateTime.now(),
           isRecommended: false,
+          createdBy: userEmail ?? 'admin', // CAMPO CREATEDBY CORRETTO
         );
       } else {
         processedWorkout = workout.copyWith(
@@ -189,13 +197,11 @@ class WorkoutProvider extends ChangeNotifier {
           createdAt: DateTime.now(),
           isRecommended: false,
           difficulty: 'Medio',
+          createdBy: userEmail ?? '', // CAMPO CREATEDBY CORRETTO
         );
       }
-      
-      // AGGIUNGE AL SERVIZIO PER LA RICERCA
+
       await WorkoutService.addWorkout(processedWorkout);
-      
-      // AGGIUNGE ALLA LISTA LOCALE
       _personalWorkouts.add(processedWorkout);
       notifyListeners();
     } catch (e) {
@@ -221,11 +227,8 @@ class WorkoutProvider extends ChangeNotifier {
           difficulty: 'Medio',
         );
       }
-      
-      // AGGIORNA NEL SERVIZIO
+
       await WorkoutService.updateWorkout(processedWorkout);
-      
-      // AGGIORNA NELLA LISTA LOCALE
       _updateWorkoutInList(processedWorkout);
       notifyListeners();
     } catch (e) {
@@ -255,10 +258,7 @@ class WorkoutProvider extends ChangeNotifier {
     _setLoading(true);
     _clearError();
     try {
-      // ELIMINA DAL SERVIZIO
       await WorkoutService.deleteWorkout(workoutId);
-      
-      // ELIMINA DALLE LISTE LOCALI
       _recommendedWorkouts.removeWhere((w) => w.id == workoutId);
       _personalWorkouts.removeWhere((w) => w.id == workoutId);
       notifyListeners();
@@ -269,19 +269,21 @@ class WorkoutProvider extends ChangeNotifier {
     }
   }
 
-  // Metodi alias per compatibilità
-  Future<bool> createRecommendedWorkout(Workout workout) async {
+  // Metodi alias per compatibilità CON SUPPORTO USEREMAIL
+  Future<bool> createRecommendedWorkout(Workout workout,
+      {String? userEmail}) async {
     try {
-      await addRecommendedWorkout(workout);
+      await addRecommendedWorkout(workout, userEmail: userEmail);
       return true;
     } catch (e) {
       return false;
     }
   }
 
-  Future<bool> createPersonalWorkout(Workout workout) async {
+  Future<bool> createPersonalWorkout(Workout workout,
+      {String? userEmail}) async {
     try {
-      await addPersonalWorkout(workout);
+      await addPersonalWorkout(workout, userEmail: userEmail);
       return true;
     } catch (e) {
       return false;

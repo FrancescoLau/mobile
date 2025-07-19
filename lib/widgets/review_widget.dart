@@ -448,8 +448,9 @@ class _ReviewWidgetState extends State<ReviewWidget> {
       final success = await reviewProvider.addReview(
         widget.workoutId,
         authProvider.currentUserId ?? '',
-        _rating,
-        _commentController.text.trim(),
+        _rating.toString(),
+        double.parse(_commentController.text.trim()),
+        '', // Add a fifth argument as needed (e.g., an empty string or appropriate value)
       );
 
       if (success) {

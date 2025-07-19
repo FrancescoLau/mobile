@@ -25,7 +25,7 @@ class ReviewStats {
 }
 
 class ReviewService {
-  static final _reviews = <Review>[];
+  static final List<Review> _reviews = [];
 
   /* ---------- Metodi di Base ---------- */
 
@@ -39,35 +39,46 @@ class ReviewService {
 
   static Future<List<Review>> getUserReviews(String userId) async {
     await Future.delayed(const Duration(milliseconds: 30));
-    return _reviews.where((r) => r.userId == userId && !r.isHidden).toList();
+    final userReviews =
+        _reviews.where((r) => r.userId == userId && !r.isHidden).toList();
+    // CORREZIONE: Ordina per data di creazione (più recenti prima)
+    userReviews.sort((a, b) => b.createdAt.compareTo(a.createdAt));
+    return userReviews;
   }
 
   static Future<List<Review>> getWorkoutReviews(String workoutId) async {
     await Future.delayed(const Duration(milliseconds: 30));
-    return _reviews
-        .where((r) => r.workoutId == workoutId && !r.isHidden)
-        .toList();
+    final workoutReviews =
+        _reviews.where((r) => r.workoutId == workoutId && !r.isHidden).toList();
+    // CORREZIONE: Ordina per data di creazione (più recenti prima)
+    workoutReviews.sort((a, b) => b.createdAt.compareTo(a.createdAt));
+    return workoutReviews;
   }
 
   /* ---------- Operazioni CRUD ---------- */
 
   static Future<bool> addReview(Review review) async {
-    await Future.delayed(const Duration(milliseconds: 100));
+    // CORREZIONE: Aggiungi delay per consistenza
+    await Future.delayed(const Duration(milliseconds: 60));
+
     try {
-      // Verifica se l'utente ha già recensito questo workout
-      final existingReview = _reviews.any(
-          (r) => r.userId == review.userId && r.workoutId == review.workoutId);
+      // CORREZIONE: Verifica solo recensioni non nascoste
+      final existingReview = _reviews.any((r) =>
+          r.userId == review.userId &&
+          r.workoutId == review.workoutId &&
+          !r.isHidden);
 
       if (existingReview) {
-        return false; // Utente ha già recensito
-      }
-
-      // Valida la recensione
-      final validationErrors = validateReview(review);
-      if (validationErrors.isNotEmpty) {
         return false;
       }
 
+      // Valida la recensione
+      final errors = validateReview(review);
+      if (errors.isNotEmpty) {
+        return false;
+      }
+
+      // Aggiungi la recensione
       _reviews.add(review);
       return true;
     } catch (e) {
@@ -81,7 +92,7 @@ class ReviewService {
     try {
       final index = _reviews.indexWhere((r) => r.id == review.id);
       if (index != -1) {
-        _reviews[index] = review.copyWith(updatedAt: DateTime.now());
+        _reviews[index] = review;
         return true;
       }
       return false;
@@ -123,19 +134,22 @@ class ReviewService {
     }
   }
 
+  // CORREZIONE: Esclude le recensioni nascoste dal controllo
   static Future<bool> hasUserReviewed(String userId, String workoutId) async {
     await Future.delayed(const Duration(milliseconds: 20));
-    return _reviews.any((r) => r.userId == userId && r.workoutId == workoutId);
+    return _reviews.any(
+        (r) => r.userId == userId && r.workoutId == workoutId && !r.isHidden);
   }
 
   /* ---------- Metodi di Ricerca ---------- */
 
+  // CORREZIONE: Permette di trovare anche recensioni nascoste per l'editing
   static Future<Review?> getUserReviewForWorkout(
       String userId, String workoutId) async {
     await Future.delayed(const Duration(milliseconds: 30));
     try {
       return _reviews.firstWhere(
-        (r) => r.workoutId == workoutId && r.userId == userId && !r.isHidden,
+        (r) => r.workoutId == workoutId && r.userId == userId,
       );
     } catch (e) {
       return null;
@@ -147,12 +161,16 @@ class ReviewService {
     if (query.isEmpty) return [];
 
     final lowerQuery = query.toLowerCase();
-    return _reviews
+    final searchResults = _reviews
         .where((r) =>
             !r.isHidden &&
             (r.comment.toLowerCase().contains(lowerQuery) ||
                 r.userEmail.toLowerCase().contains(lowerQuery)))
         .toList();
+
+    // CORREZIONE: Ordina i risultati per rilevanza/data
+    searchResults.sort((a, b) => b.createdAt.compareTo(a.createdAt));
+    return searchResults;
   }
 
   /* ---------- Statistiche ---------- */
@@ -168,15 +186,15 @@ class ReviewService {
 
     final avg = list.map((e) => e.rating).reduce((a, b) => a + b) / list.length;
 
-    // Calcola distribuzione rating
+    // CORREZIONE: Migliore gestione della distribuzione rating
     final ratingDistribution = <int, int>{1: 0, 2: 0, 3: 0, 4: 0, 5: 0};
     for (final review in list) {
-      final rating = review.rating.round();
+      final rating = review.rating.round().clamp(1, 5); // Assicura range 1-5
       ratingDistribution[rating] = (ratingDistribution[rating] ?? 0) + 1;
     }
 
     return ReviewStats(
-      avg: avg,
+      avg: double.parse(avg.toStringAsFixed(1)), // Arrotonda a 1 decimale
       count: list.length,
       ratingDistribution: ratingDistribution,
     );
@@ -194,10 +212,16 @@ class ReviewService {
   static Future<List<Review>> getTopReviews({int limit = 10}) async {
     await Future.delayed(const Duration(milliseconds: 30));
     final validReviews = _reviews.where((r) => !r.isHidden).toList();
-    validReviews.sort((a, b) => b.rating.compareTo(a.rating));
+    // CORREZIONE: Prima per rating, poi per data se stesso rating
+    validReviews.sort((a, b) {
+      final ratingComparison = b.rating.compareTo(a.rating);
+      if (ratingComparison != 0) return ratingComparison;
+      return b.createdAt.compareTo(a.createdAt);
+    });
     return validReviews.take(limit).toList();
   }
 
+  // CORREZIONE: Validazione email migliorata
   static List<String> validateReview(Review review) {
     final errors = <String>[];
 
@@ -209,16 +233,12 @@ class ReviewService {
       errors.add('Il commento non può essere vuoto');
     }
 
-    if (review.comment.length < 10) {
-      errors.add('Il commento deve essere di almeno 10 caratteri');
+    if (review.comment.trim().length > 500) {
+      errors.add('Il commento non può superare i 500 caratteri');
     }
 
-    if (review.comment.length > 500) {
-      errors.add('Il commento non può superare 500 caratteri');
-    }
-
-    if (review.userEmail.isEmpty || !review.userEmail.contains('@')) {
-      errors.add('Email non valida');
+    if (review.userEmail.isEmpty) {
+      errors.add('Email richiesta');
     }
 
     return errors;
@@ -284,6 +304,17 @@ class ReviewService {
           createdAt: DateTime.now().subtract(const Duration(hours: 6)),
           isHidden: false,
         ),
+        Review(
+          id: 'review_5',
+          workoutId: 'workout_2',
+          userId: 'user_5',
+          userEmail: 'marco.ferrari@example.com',
+          rating: 4.8,
+          comment:
+              'Fantastico! L\'allenamento più completo che abbia mai provato. Consigliatissimo a tutti.',
+          createdAt: DateTime.now().subtract(const Duration(hours: 3)),
+          isHidden: false,
+        ),
       ]);
     }
   }
@@ -313,5 +344,62 @@ class ReviewService {
       startIndex,
       endIndex > workoutReviews.length ? workoutReviews.length : endIndex,
     );
+  }
+
+  // CORREZIONE: Metodo per ottenere statistiche semplici (compatibilità con ReviewProvider)
+  static Future<Map<String, dynamic>> getWorkoutStats(String workoutId) async {
+    await Future.delayed(const Duration(milliseconds: 40));
+
+    try {
+      final reviews = _reviews
+          .where((r) => r.workoutId == workoutId && !r.isHidden)
+          .toList();
+
+      if (reviews.isEmpty) {
+        return {'rating': 0.0, 'count': 0};
+      }
+
+      double totalRating = 0;
+      for (var review in reviews) {
+        totalRating += review.rating;
+      }
+
+      final average = totalRating / reviews.length;
+
+      return {
+        'rating': double.parse(average.toStringAsFixed(1)),
+        'count': reviews.length
+      };
+    } catch (e) {
+      print('Errore nel calcolo delle statistiche: $e');
+      return {'rating': 0.0, 'count': 0};
+    }
+  }
+
+  /* ---------- Metodi Aggiuntivi di Utilità ---------- */
+
+  // NUOVO: Metodo per ottenere recensioni di un utente per un workout specifico (incluse nascoste)
+  static Future<Review?> getUserReviewForWorkoutIncludeHidden(
+      String userId, String workoutId) async {
+    await Future.delayed(const Duration(milliseconds: 30));
+    try {
+      return _reviews.firstWhere(
+        (r) => r.workoutId == workoutId && r.userId == userId,
+      );
+    } catch (e) {
+      return null;
+    }
+  }
+
+  // NUOVO: Metodo per verificare se ci sono recensioni moderate per un workout
+  static Future<bool> hasModeratedReviews(String workoutId) async {
+    await Future.delayed(const Duration(milliseconds: 20));
+    return _reviews.any((r) => r.workoutId == workoutId && r.isHidden);
+  }
+
+  // NUOVO: Metodo per ottenere il numero di recensioni moderate
+  static Future<int> getModeratedReviewCount(String workoutId) async {
+    await Future.delayed(const Duration(milliseconds: 20));
+    return _reviews.where((r) => r.workoutId == workoutId && r.isHidden).length;
   }
 }

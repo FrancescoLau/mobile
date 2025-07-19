@@ -7,6 +7,9 @@ import 'providers/review_provider.dart';
 import 'providers/notification_provider.dart';
 import 'screens/home_page.dart';
 
+// Define a global navigator key
+final GlobalKey<NavigatorState> navigatorKey = GlobalKey<NavigatorState>();
+
 void main() {
   runApp(const MyApp());
 }
@@ -25,8 +28,12 @@ class MyApp extends StatelessWidget {
       ],
       child: MaterialApp(
         title: 'Workout App',
+        navigatorKey: navigatorKey,
         theme: ThemeData(
-          primarySwatch: Colors.blue,
+          useMaterial3: true,
+          colorScheme: ColorScheme.fromSeed(
+            seedColor: Colors.deepPurple,
+          ),
         ),
         home: const HomePage(),
       ),
